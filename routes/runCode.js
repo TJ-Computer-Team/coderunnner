@@ -216,10 +216,9 @@ async function run(problem, submit) {
                 }
                 if (!(juryAnswer.trim() === "AC" || juryAnswer.trim() === "Accepted")) {
                     payload.verdict = "Wrong Answer";
-                    if (testnum < 1) {
-                        payload.output = juryAnswer;
-                    } else {
-                        payload.output = "Viewing as admin:\n" + juryAnswer;
+                    payload.output = "Failed on test " + testnum + ":\n" + juryAnswer;
+                    if (testnum >= 1) {
+                        payload.output = "Viewing as admin:\n" + payload.output;
                     }
                     payload.tl = maxtime;
                     solved = false;
