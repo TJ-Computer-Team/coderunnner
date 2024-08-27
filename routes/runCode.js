@@ -4,7 +4,7 @@ const {
     add
 } = require("./sql");
 
-async function addTests(pid, tid, test, out) {
+async function addTests(pid, tid, test, out) { // not used
     let loc = "../problems/" + pid;
     if (!fs.existsSync(loc + pid)) {
         fs.mkdirSync(loc + "/sol", {
@@ -19,7 +19,7 @@ async function addTests(pid, tid, test, out) {
     fs.writeFileSync(loc + "/test/" + tid, test);
     fs.writeFileSync(loc + "/sol/" + tid, out);
 }
-async function addChecker(pid, code) {
+async function addChecker(pid, code) { // not used
     let loc = "../problems/" + pid;
     if (!fs.existsSync(loc + pid)) {
         fs.mkdirSync(loc + "/sol", {
@@ -33,14 +33,18 @@ async function addChecker(pid, code) {
     }
     fs.writeFileSync(loc + "/code", code);
 }
-async function runCode(input_file, lang, solution, compile, extended, checker = false) {
+async function runCode(input_file, lang, solution, tl, ml, compile = false, checker = false) {
     let output = ''
     let start = 0;
     let end = -1;
+    let time_suffix = '';
+    if (tl != 1000 && tl % 1000 == 0 && tl <= 3000) {
+        time_suffix = String(tl/100);
+    }
     if (lang == 'cpp') {
         fs.writeFileSync('subcode/test.cpp', solution);
         try {
-            str = 'sudo ./nsjail/nsjail --config nsjail/configs/executable.cfg < ' + input_file + " > subcode/output.txt";
+            str = 'sudo ./nsjail/nsjail --config nsjail/configs/executable' + time_suffix + '.cfg < ' + input_file + " > subcode/output.txt";
             if (compile) {
                 output = execSync("g++ -o subcode/a.out subcode/test.cpp", {
                     encoding: 'utf-8'
@@ -62,9 +66,9 @@ async function runCode(input_file, lang, solution, compile, extended, checker = 
     } else if (lang == 'python') {
         fs.writeFileSync('subcode/test.py', solution);
         try {
-            str = 'sudo ./nsjail/nsjail --config nsjail/configs/python.cfg < ' + input_file + " > subcode/output.txt";
+            str = 'sudo ./nsjail/nsjail --config nsjail/configs/python' + time_suffix + '.cfg < ' + input_file + " > subcode/output.txt";
             if (checker) {
-                str = 'sudo ./nsjail/nsjail --config nsjail/configs/pythonchecker.cfg < ' + input_file
+                str = 'sudo ./nsjail/nsjail --config nsjail/configs/pythonchecker' + time_suffix + '.cfg < ' + input_file
             }
             start = performance.now();
             output = execSync(str, {
@@ -72,7 +76,7 @@ async function runCode(input_file, lang, solution, compile, extended, checker = 
             });
             end = performance.now();
         } catch (error) {
-            console.log("Eror when trying to run Python code:", error);
+            console.log("Error when trying to run Python code:", error);
             payload = {
                 output: error['stderr'],
                 time: -1
@@ -82,7 +86,7 @@ async function runCode(input_file, lang, solution, compile, extended, checker = 
     } else if (lang == 'java') {
         fs.writeFileSync('subcode/test.java', solution);
         try {
-            str = 'sudo ./nsjail/nsjail --config nsjail/configs/java.cfg < ' + input_file + " > subcode/output.txt";
+            str = 'sudo ./nsjail/nsjail --config nsjail/configs/java' + time_suffix + '.cfg < ' + input_file + " > subcode/output.txt";
             output = execSync("javac subcode/test.java", {
                 encoding: 'utf-8'
             });
@@ -114,7 +118,7 @@ async function compileTests(problem) { // not in use
     let loc = "../problems/" + problem.id;
     fs.readdir(loc, (err, files) => {
         for (i in files) {
-            fs.writeFileSync(loc + "/sol/" + i, runCode(i, problem.lang, code, true, false).output);
+            fs.writeFileSync(loc + "/sol/" + i, runCode(i, problem.lang, code, problem.tl, problem.ml).output);
         }
     });
 }
@@ -146,18 +150,13 @@ async function run(problem, submit) {
             payload.output = "Problem ID not found"
             res(payload)
         }
-        let solved = true;
-        let compile = true;
         fs.readdir(loc, async (err, files) => {
             if (err) {
                 console.log("Error in run:", err);
                 return;
             }
             let testnum = 0;
-            let extended = false;
-            if (problem.id == 30 || problem.id == 26) { // implement custom time limit later, replace extended with actual time limit
-                extended = true;
-            }
+            let solved = true;
             for (_ in files) {
                 i = files[_]
                 console.log(loc + i);
@@ -166,7 +165,7 @@ async function run(problem, submit) {
                 let compError = false
                 for (let iterations = 0; iterations < 3; iterations++) {
                     rerun = false;
-                    outputfull = await runCode(loc + i, language, userCode, compile, extended)
+                    outputfull = await runCode(loc + i, language, userCode, tl, ml, true)
                     await timeout(100);
                     output = outputfull.output;
                     if (outputfull.time > maxtime) maxtime = outputfull.time;
@@ -176,9 +175,9 @@ async function run(problem, submit) {
                         if (output.includes("run time >= time limit")) {
                             rerun = true;
                             payload.verdict = "Time Limit Exceeded"
-                            if (language == 'cpp') maxtime = 1000; // implement custom time limit later
-                            else if (language == 'java') maxtime = 2000;
-                            else if (language == 'python') maxtime = 3000;
+                            if (language == 'cpp') maxtime = tl; // implement custom time limit later
+                            else if (language == 'java') maxtime = tl * 2;
+                            else if (language == 'python') maxtime = tl * 3;
                         } else if (output.includes("MemoryError") || output.includes("StackOverflowError")) {
                             payload.verdict = "Memory Limit Exceeded"
                             rerun = true;
@@ -199,7 +198,7 @@ async function run(problem, submit) {
                     break;
                 }
                 fs.writeFileSync("subcode/args.txt", problem.id + " " + i)
-                juryAnswer = await runCode("subcode/args.txt", "python", checkerCode, true, extended, true);
+                juryAnswer = await runCode("subcode/args.txt", "python", checkerCode, -1, -1, true, true);
                 await timeout(100);
                 juryAnswer = juryAnswer.output;
                 console.log("Timing:");
