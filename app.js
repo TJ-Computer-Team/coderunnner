@@ -32,15 +32,20 @@ app.post("/run", async (req, res) => {
         res.send("You didn't select an actual problem");
         return;
     }
+    let tl = req.body.tl;
+    let ml = req.body.ml;
+    if (isNaN(tl) || isNaN(ml)) {
+        res.send("Invalid values");
+    }
     code = {
         "code": req.body.code,
         "language": language
     }
     problem = {
         "id": parseInt(pid),
-        "tl": 1000,
-        "ml": 1000,
-        "checkid": 1 // custom tl, ml, and checker to be added
+        "tl": parseInt(tl),
+        "ml": parseInt(ml),
+        "checkid": -1 // custom checker to be added
     }
     let result = await run(problem, code);
     res.send(result)

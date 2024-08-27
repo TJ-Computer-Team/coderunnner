@@ -186,7 +186,7 @@ async function run(problem, submit) {
                         output = output.replace(/^\[I\].*/gm, '');
                         output = output.trim()
                         payload.output = output
-                        console.log("Error in compilation")
+                        console.log("Code got TLE, MLE, RTE, CPE")
                         compError = true
                     }
                     if (!rerun) {
