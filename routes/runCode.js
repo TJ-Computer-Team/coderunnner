@@ -175,7 +175,7 @@ async function run(problem, submit) {
                         if (output.includes("run time >= time limit")) {
                             rerun = true;
                             payload.verdict = "Time Limit Exceeded"
-                            if (language == 'cpp') maxtime = tl; // implement custom time limit later
+                            if (language == 'cpp') maxtime = tl;
                             else if (language == 'java') maxtime = tl * 2;
                             else if (language == 'python') maxtime = tl * 3;
                         } else if (output.includes("MemoryError") || output.includes("StackOverflowError")) {
